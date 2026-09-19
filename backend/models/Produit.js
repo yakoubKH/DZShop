@@ -35,6 +35,3 @@ const produitSchema = new mongoose.Schema(
 const Produit = mongoose.model('Produit', produitSchema);
 
 export default Produit;
-//username : yakoub1992
-//password : yakoub123
-//mongodb+srv://yakoub1992:<db_password>@cluster0.kbv6xjv.mongodb.net/?appName=Cluster0
