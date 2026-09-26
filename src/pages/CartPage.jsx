@@ -1,6 +1,6 @@
-
 import { useState } from 'react';
-import axios from 'axios';
+import { Link } from 'react-router-dom';
+import api from '../api/axios';
 import { useCart } from '../context/CartContext';
 
 function CartPage() {
@@ -38,8 +38,8 @@ function CartPage() {
 
     try {
 
-      const commande = await axios.post(
-        'http://localhost:5000/api/commandes',
+      const commande = await api.post(
+        '/commandes',
         {
           cartItems: cartItems.map(function (item) {
 
@@ -112,9 +112,23 @@ function CartPage() {
 
         <h1>Panier</h1>
 
-        <p>
-          Ton panier est vide pour l'instant.
-        </p>
+        {/* Après la commande, clearCart() vide le panier : on affiche donc ICI
+            le message de confirmation (sinon le client ne le verrait jamais) */}
+        {message && (
+          <div className="alert alert-success mt-3">
+            {message}
+          </div>
+        )}
+
+        {!message && (
+          <p>
+            Ton panier est vide pour l'instant.
+          </p>
+        )}
+
+        <Link className="btn btn-primary" to="/products">
+          Continuer mes achats
+        </Link>
 
       </div>
     );

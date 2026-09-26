@@ -1,11 +1,9 @@
-
 //**********************
 //jsx
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 import { useCart } from '../context/CartContext';
-import ProductCard from '../components/ProductCard';
 
 function ProductDetaille() {
   const {addToCart} = useCart();
@@ -19,7 +17,7 @@ function ProductDetaille() {
   // Récupérer le produit depuis l'API
   useEffect(function () {
 
-    axios.get(`http://localhost:5000/api/produits/${id}`)
+    api.get('/produits/' + id)
       .then(function (res) {
         setProduit(res.data);
       })
@@ -78,5 +76,4 @@ function ProductDetaille() {
 }
 
 export default ProductDetaille;
-
 

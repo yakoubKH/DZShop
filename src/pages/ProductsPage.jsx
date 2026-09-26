@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 import { useCart } from '../context/CartContext';
 import ProductCard from '../components/ProductCard';
 import Search from '../context/Search';
@@ -19,7 +18,7 @@ function ProductsPage() {
   // Récupération des produits depuis MongoDB / API
   useEffect(function () {
 
-    axios.get('http://localhost:5000/api/produits')
+    api.get('/produits')
       .then(function (res) {
         setProducts(res.data);
       })
@@ -86,4 +85,3 @@ function ProductsPage() {
 }
 
 export default ProductsPage;
-
