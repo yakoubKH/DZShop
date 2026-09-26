@@ -19,6 +19,13 @@ const commandeSchema = new mongoose.Schema({
 
   total: Number,
 
+  // En attente, Livrée... (l'admin pourra le changer plus tard)
+  statut: {
+    type: String,
+    enum: ['En attente', 'Expédiée', 'Livrée', 'Annulée'],
+    default: 'En attente'
+  },
+
   date: {
     type: Date,
     default: Date.now
