@@ -4,8 +4,11 @@
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useCart } from '../context/CartContext';
+import ProductCard from '../components/ProductCard';
 
 function ProductDetaille() {
+  const {addToCart} = useCart();
 
   // Récupérer l'id présent dans l'URL
   const { id } = useParams();
@@ -58,9 +61,13 @@ function ProductDetaille() {
             {produit.description}
           </p>
 
-          <button className="btn btn-primary">
-            Ajouter au panier
-          </button>
+           <button
+                onClick={function () {
+                  addToCart(produit);
+                }}
+              >
+                Ajouter au panier
+              </button>
 
         </div>
 

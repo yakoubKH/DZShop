@@ -1,11 +1,19 @@
-
 import { createContext, useContext, useState } from 'react';
+import { useEffect } from 'react';
 
 export const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
 
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState(() => {
+    const saved = localStorage.getItem('dzshop_panier');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dzshop_panier', JSON.stringify(cartItems));
+  }, [cartItems]);
+
 
   // Ajouter un produit au panier
   function addToCart(product) {
@@ -13,6 +21,7 @@ export function CartProvider({ children }) {
     setCartItems(function (prev) {
 
       const existant = prev.find(function (item) {
+
         return item._id === product._id;
       });
 
@@ -47,6 +56,7 @@ export function CartProvider({ children }) {
 
   }
 
+
   // Diminuer la quantité
   function decreaseQuantity(id) {
 
@@ -77,6 +87,7 @@ export function CartProvider({ children }) {
 
   }
 
+
   // Supprimer complètement un produit
   function removeFromCart(id) {
 
@@ -92,12 +103,22 @@ export function CartProvider({ children }) {
 
   }
 
+
+  // Vider complètement le panier
+  function clearCart() {
+
+    setCartItems([]);
+
+  }
+
+
   // Nombre total d'articles
   const nbItems = cartItems.reduce(function (sum, item) {
 
     return sum + item.quantity;
 
   }, 0);
+
 
   // Prix total
   const total = cartItems.reduce(function (sum, item) {
@@ -106,6 +127,7 @@ export function CartProvider({ children }) {
 
   }, 0);
 
+
   return (
     <CartContext.Provider
       value={{
@@ -113,6 +135,7 @@ export function CartProvider({ children }) {
         addToCart,
         decreaseQuantity,
         removeFromCart,
+        clearCart,
         nbItems,
         total
       }}
@@ -123,10 +146,9 @@ export function CartProvider({ children }) {
 
 }
 
+
 export function useCart() {
 
   return useContext(CartContext);
 
 }
-
-
