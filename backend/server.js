@@ -19,7 +19,7 @@ const app = express();
 
 // Qui a le droit d'appeler l'API depuis un navigateur ?
 // En local : Vite (port 5173). En ligne : l'adresse de ton site (variable FRONTEND_URL).
-const origines = ['http://localhost:5173', process.env.FRONTEND_URL].filter(Boolean);
+const origines = ['http://localhost:5173',"http://localhost:4173", process.env.FRONTEND_URL].filter(Boolean);
 
 app.use(cors({ origin: origines }));
 app.use(express.json());
