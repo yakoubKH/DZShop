@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import Produit from './models/Produit.js';
 import Commande from './models/Commande.js';
+import User from './models/User.js';
 import authRouter from './routes/auth.js';
 import { verifyToken, isAdmin } from './middleware/auth.js';
 
@@ -379,6 +380,312 @@ app.get('/api/commandes', verifyToken, isAdmin, async (req, res) => {
     const commandes = await Commande.find().sort({ date: -1 });
 
     res.json(commandes);
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message
+    });
+
+  }
+
+});
+
+
+// ========================================
+// Changer le statut d'une commande (ADMIN seulement)
+// ========================================
+app.patch('/api/commandes/:id/statut', verifyToken, isAdmin, async (req, res) => {
+
+  try {
+
+    if (!mongoose.isValidObjectId(req.params.id)) {
+
+      return res.status(404).json({
+        message: 'Commande introuvable'
+      });
+
+    }
+
+    const { statut } = req.body;
+
+    const statutsValides = ['En attente', 'Expédiée', 'Livrée', 'Annulée'];
+
+    if (!statutsValides.includes(statut)) {
+
+      return res.status(400).json({
+        message: 'Statut invalide'
+      });
+
+    }
+
+    const commande = await Commande.findById(req.params.id);
+
+    if (!commande) {
+
+      return res.status(404).json({
+        message: 'Commande introuvable'
+      });
+
+    }
+
+    // On retient si elle était DÉJÀ annulée AVANT de changer le statut,
+    // pour ne jamais restituer le stock deux fois sur la même commande.
+    const etaitDejaAnnulee = commande.statut === 'Annulée';
+
+    commande.statut = statut;
+    await commande.save();
+
+    // On ne remet le stock que si elle DEVIENT annulée maintenant
+    // (et qu'elle ne l'était pas déjà).
+    if (statut === 'Annulée' && !etaitDejaAnnulee) {
+
+      for (const ligne of commande.produits) {
+
+        await Produit.updateOne(
+          { _id: ligne.produitId },
+          { $inc: { stock: ligne.quantite } }
+        );
+
+      }
+
+    }
+
+    res.json(commande);
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message
+    });
+
+  }
+
+});
+
+
+// ========================================
+// Utilisateurs : liste (ADMIN seulement)
+// ========================================
+app.get('/api/utilisateurs', verifyToken, isAdmin, async (req, res) => {
+
+  try {
+
+    const utilisateurs = await User.find().sort({ createdAt: -1 });
+
+    res.json(utilisateurs.map(function (u) {
+      return u.versPublic();
+    }));
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message
+    });
+
+  }
+
+});
+
+
+// ========================================
+// Utilisateurs : changer le rôle (ADMIN seulement)
+// ========================================
+app.patch('/api/utilisateurs/:id/role', verifyToken, isAdmin, async (req, res) => {
+
+  try {
+
+    if (!mongoose.isValidObjectId(req.params.id)) {
+
+      return res.status(404).json({
+        message: 'Utilisateur introuvable'
+      });
+
+    }
+
+    // Garde-fou : un admin ne peut pas changer son propre rôle
+    // (sinon il pourrait se retirer les droits admin par erreur, ou se les donner en double)
+    if (String(req.params.id) === String(req.user._id)) {
+
+      return res.status(400).json({
+        message: 'Tu ne peux pas modifier ton propre rôle'
+      });
+
+    }
+
+    const { role } = req.body;
+
+    if (!['client', 'admin'].includes(role)) {
+
+      return res.status(400).json({
+        message: 'Rôle invalide'
+      });
+
+    }
+
+    const utilisateur = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { returnDocument: 'after' }
+    );
+
+    if (!utilisateur) {
+
+      return res.status(404).json({
+        message: 'Utilisateur introuvable'
+      });
+
+    }
+
+    res.json(utilisateur.versPublic());
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message
+    });
+
+  }
+
+});
+
+
+// ========================================
+// Utilisateurs : bloquer / débloquer (ADMIN seulement)
+// ========================================
+app.patch('/api/utilisateurs/:id/bloquer', verifyToken, isAdmin, async (req, res) => {
+
+  try {
+
+    if (!mongoose.isValidObjectId(req.params.id)) {
+
+      return res.status(404).json({
+        message: 'Utilisateur introuvable'
+      });
+
+    }
+
+    // Garde-fou : un admin ne peut pas se bloquer lui-même
+    // (sinon il pourrait se retrouver enfermé dehors, sans personne pour le débloquer)
+    if (String(req.params.id) === String(req.user._id)) {
+
+      return res.status(400).json({
+        message: 'Tu ne peux pas te bloquer toi-même'
+      });
+
+    }
+
+    const { bloque } = req.body;
+
+    if (typeof bloque !== 'boolean') {
+
+      return res.status(400).json({
+        message: 'Valeur invalide'
+      });
+
+    }
+
+    const utilisateur = await User.findByIdAndUpdate(
+      req.params.id,
+      { bloque },
+      { returnDocument: 'after' }
+    );
+
+    if (!utilisateur) {
+
+      return res.status(404).json({
+        message: 'Utilisateur introuvable'
+      });
+
+    }
+
+    res.json(utilisateur.versPublic());
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: error.message
+    });
+
+  }
+
+});
+
+
+// ========================================
+// Statistiques (ADMIN seulement)
+// ========================================
+app.get('/api/stats', verifyToken, isAdmin, async (req, res) => {
+
+  try {
+
+    // Le chiffre d'affaires : seulement les commandes vraiment livrées
+    // (une commande "En attente" ou "Annulée" n'est pas un revenu réel)
+    const caResultat = await Commande.aggregate([
+      { $match: { statut: 'Livrée' } },
+      { $group: { _id: null, total: { $sum: '$total' } } }
+    ]);
+
+    const chiffreAffaires = caResultat.length ? caResultat[0].total : 0;
+
+    // Top produits : on éclate chaque ligne "produits" de chaque commande livrée,
+    // puis on additionne les quantités par produit.
+    const topProduits = await Commande.aggregate([
+      { $match: { statut: 'Livrée' } },
+      { $unwind: '$produits' },
+      {
+        $group: {
+          _id: '$produits.produitId',
+          nom: { $first: '$produits.nom' },
+          quantite: { $sum: '$produits.quantite' },
+          chiffreAffaires: {
+            $sum: { $multiply: ['$produits.prix', '$produits.quantite'] }
+          }
+        }
+      },
+      { $sort: { quantite: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // Ventes des 7 derniers jours (toutes commandes non annulées, jour par jour)
+    const commandes = await Commande.find({ statut: { $ne: 'Annulée' } }).select('total date');
+
+    const JOURS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    const ventes7j = [];
+
+    for (let i = 6; i >= 0; i--) {
+
+      const debut = new Date();
+      debut.setHours(0, 0, 0, 0);
+      debut.setDate(debut.getDate() - i);
+
+      const fin = new Date(debut);
+      fin.setDate(fin.getDate() + 1);
+
+      const ventesDuJour = commandes
+        .filter(function (c) {
+          return c.date >= debut && c.date < fin;
+        })
+        .reduce(function (somme, c) {
+          return somme + c.total;
+        }, 0);
+
+      ventes7j.push({ jour: JOURS[debut.getDay()], ventes: ventesDuJour });
+
+    }
+
+    const nbCommandes = await Commande.countDocuments();
+    const nbProduits = await Produit.countDocuments();
+    const nbUtilisateurs = await User.countDocuments();
+
+    res.json({
+      chiffreAffaires,
+      nbCommandes,
+      nbProduits,
+      nbUtilisateurs,
+      topProduits,
+      ventes7j
+    });
 
   } catch (error) {
 

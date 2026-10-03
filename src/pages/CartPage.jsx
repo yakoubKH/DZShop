@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useCart } from '../context/CartContext';
 
+
 function CartPage() {
 
   const {
@@ -108,6 +109,7 @@ function CartPage() {
   if (cartItems.length === 0) {
 
     return (
+      
       <div className="container py-5">
 
         <h1>Panier</h1>
@@ -354,10 +356,11 @@ function CartPage() {
           </button>
 
         </form>
+     </div>
+     </div>
+      
 
-      </div>
-
-    </div>
+    
   );
 }
 

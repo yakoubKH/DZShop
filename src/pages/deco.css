@@ -1,0 +1,27 @@
+.deco1{
+color: blue;
+background-color: blanchedalmond;
+}
+
+.deco2{
+border: 2px solid #003366;
+color: blue;
+background-color: blanchedalmond;
+padding: 20px;
+}
+body{
+    margin: 0;
+    min-height: 100vh;
+   
+}
+.login-container{
+    background: #ffffff;
+    color: blue;
+    border: 2px solid #e6f7ff;
+    border-radius: 20px;
+    padding:35px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+}
+.back{
+     background: linear-gradient(135deg,#4facfe,#00f2fe);
+}

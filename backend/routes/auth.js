@@ -1,10 +1,14 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.js';
 import { verifyToken } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Le client Google : il sait vérifier qu'un jeton vient bien de Google
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Fabrique le "badge" (token) : il contient l'id de l'utilisateur, valable 7 jours
 function creerToken(utilisateur) {
@@ -90,6 +94,14 @@ router.post('/login', async function (req, res) {
       .findOne({ email: String(email).toLowerCase().trim() })
       .select('+motDePasse');
 
+    // Un compte créé avec Google n'a pas de mot de passe : on l'explique au lieu
+    // de laisser bcrypt planter sur "undefined"
+    if (utilisateur && utilisateur.provider === 'google') {
+      return res.status(400).json({
+        message: 'Ce compte utilise la connexion Google. Clique sur "Continuer avec Google".'
+      });
+    }
+
     // Même message si l'email n'existe pas OU si le mot de passe est faux :
     // on n'aide pas un pirate à deviner quels emails existent.
     const motDePasseCorrect = utilisateur
@@ -99,6 +111,12 @@ router.post('/login', async function (req, res) {
     if (!motDePasseCorrect) {
       return res.status(401).json({
         message: 'Email ou mot de passe incorrect'
+      });
+    }
+
+    if (utilisateur.bloque) {
+      return res.status(403).json({
+        message: 'Ce compte a été bloqué'
       });
     }
 
@@ -113,6 +131,78 @@ router.post('/login', async function (req, res) {
 
     res.status(500).json({
       message: 'Erreur serveur'
+    });
+  }
+});
+
+// Connexion / inscription avec Google
+router.post('/google', async function (req, res) {
+  try {
+
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({
+        message: 'Jeton Google manquant'
+      });
+    }
+
+    // Google vérifie lui-même que le jeton est authentique (signature, date d'expiration...)
+    // Si le jeton est invalide ou trafiqué, verifyIdToken lève une erreur : direction le catch, 401.
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email || !payload.email_verified) {
+      return res.status(401).json({
+        message: 'Compte Google non valide'
+      });
+    }
+
+    const emailPropre = payload.email.toLowerCase().trim();
+
+    // On cherche si cet email existe déjà (inscrit avec mot de passe, par exemple)
+    let utilisateur = await User.findOne({ email: emailPropre });
+
+    if (!utilisateur) {
+
+      // Première connexion Google : on crée le compte directement
+      utilisateur = await User.create({
+        nom: payload.name || emailPropre.split('@')[0],
+        email: emailPropre,
+        provider: 'google',
+        googleId: payload.sub
+      });
+
+    } else if (!utilisateur.googleId) {
+
+      // Le compte existait déjà (créé avec mot de passe) : on FUSIONNE,
+      // on ne crée jamais un deuxième compte pour le même email.
+      utilisateur.googleId = payload.sub;
+      await utilisateur.save();
+
+    }
+
+    if (utilisateur.bloque) {
+      return res.status(403).json({
+        message: 'Ce compte a été bloqué'
+      });
+    }
+
+    res.json({
+      message: 'Connexion réussie',
+      token: creerToken(utilisateur),
+      user: utilisateur.versPublic()
+    });
+
+  } catch (error) {
+    console.error('Erreur connexion Google :', error.message);
+
+    res.status(401).json({
+      message: 'Authentification Google impossible'
     });
   }
 });

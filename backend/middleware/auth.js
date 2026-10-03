@@ -16,11 +16,15 @@ export async function verifyToken(req, res, next) {
     const decode = jwt.verify(token, process.env.JWT_SECRET);
 
     // On relit l'utilisateur en base à chaque requête :
-    // si son rôle change, c'est pris en compte tout de suite.
+    // si son rôle change (ou s'il est bloqué), c'est pris en compte tout de suite.
     const utilisateur = await User.findById(decode.id);
 
     if (!utilisateur) {
       return res.status(401).json({ message: 'Compte introuvable' });
+    }
+
+    if (utilisateur.bloque) {
+      return res.status(403).json({ message: 'Ce compte a été bloqué' });
     }
 
     req.user = utilisateur;
