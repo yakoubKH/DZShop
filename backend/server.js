@@ -29,7 +29,6 @@ app.get('/', function (req, res) {
   res.json({ message: 'API DZShop en ligne' });
 });
 
-
 // ========================================
 // Récupérer tous les produits (public)
 // ========================================
