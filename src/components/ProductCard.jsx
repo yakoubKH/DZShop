@@ -2,42 +2,52 @@
 import { Link } from 'react-router-dom';
 
 function ProductCard({ produit }) {
-
   return (
-    <div className="card custom-card">
+    <div className="product-card">
 
-      <img
-        src={produit.chemin}
-        className="card-img-top"
-        alt={produit.nom}
-      />
+      <Link
+        to={`/products/${produit._id}`}
+        className="product-card-image-link"
+        aria-label={`Voir le produit ${produit.nom}`}
+      >
+        <div className="product-card-image">
+          <img
+            src={produit.chemin}
+            alt={produit.nom || 'Produit électronique'}
+            loading="lazy"
+          />
+        </div>
+      </Link>
 
-      <div className="card-body">
+      <div className="product-card-body">
 
-        <h5 className="card-title">
-          {produit.nom}
-        </h5>
+        {produit.categorie && (
+          <span className="product-card-category">
+            {produit.categorie}
+          </span>
+        )}
 
-        <p className="card-text">
-          {produit.categorie}
-        </p>
+        <h2 className="product-card-title">
+          <Link to={`/products/${produit._id}`}>
+            {produit.nom}
+          </Link>
+        </h2>
 
-        <p className="card-text">
-          {produit.prix} DA
+        <p className="product-card-price">
+          {produit.prix} <span>DA</span>
         </p>
 
         <Link
           to={`/products/${produit._id}`}
-          className="btn btn-primary"
+          className="btn-modern btn-modern-outline product-details-button"
         >
           Voir le produit
+          <span aria-hidden="true"> →</span>
         </Link>
 
       </div>
-
     </div>
   );
 }
 
 export default ProductCard;
-

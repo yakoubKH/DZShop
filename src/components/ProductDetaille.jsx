@@ -1,79 +1,144 @@
-//**********************
-//jsx
-import { useParams } from 'react-router-dom';
+
+import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { useCart } from '../context/CartContext';
 
 function ProductDetaille() {
-  const {addToCart} = useCart();
-
-  // Récupérer l'id présent dans l'URL
   const { id } = useParams();
+  const { addToCart } = useCart();
 
-  // Produit sélectionné
   const [produit, setProduit] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Récupérer le produit depuis l'API
-  useEffect(function () {
+  useEffect(() => {
+    let active = true;
 
-    api.get('/produits/' + id)
-      .then(function (res) {
-        setProduit(res.data);
+    setLoading(true);
+    setError('');
+    setProduit(null);
+
+    api.get(`/produits/${id}`)
+      .then((res) => {
+        if (active) {
+          setProduit(res.data);
+        }
       })
-      .catch(function (err) {
-        console.log('Erreur :', err.message);
+      .catch((err) => {
+        console.error('Erreur de chargement :', err);
+
+        if (active) {
+          if (err.response?.status === 404) {
+            setError('Ce produit est introuvable.');
+          } else {
+            setError(
+              'Impossible de charger le produit. Vérifiez votre connexion et réessayez.'
+            );
+          }
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
       });
 
+    return () => {
+      active = false;
+    };
   }, [id]);
 
-  // Pendant le chargement
-  if (!produit) {
-    return <p>Chargement...</p>;
+  if (loading) {
+    return (
+      <main className="page-container product-state">
+        <p role="status">Chargement du produit...</p>
+      </main>
+    );
+  }
+
+  if (error || !produit) {
+    return (
+      <main className="page-container product-state">
+        <div className="product-error">
+          <h1>Produit indisponible</h1>
+          <p>{error || 'Ce produit est introuvable.'}</p>
+
+          <Link
+            to="/products"
+            className="btn-modern btn-modern-primary"
+          >
+            Retour aux produits
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <div className="container py-5">
+    <main className="product-detail-page">
+      <div className="page-container">
 
-      <div className="row">
+        <nav className="product-breadcrumb" aria-label="Fil d'Ariane">
+          <Link to="/">Accueil</Link>
+          <span>/</span>
+          <Link to="/products">Produits</Link>
+          <span>/</span>
+          <span>{produit.nom}</span>
+        </nav>
 
-        {/* Image */}
-        <div className="col-md-6">
-          <img
-            src={produit.chemin}
-            className="img-fluid"
-            alt={produit.nom}
-          />
-        </div>
+        <section className="product-detail-layout">
 
-        {/* Informations */}
-        <div className="col-md-6">
+          <div className="product-detail-image">
+            <img
+              src={produit.chemin}
+              alt={produit.nom || 'Produit électronique'}
+            />
+          </div>
 
-          <h1>{produit.nom}</h1>
+          <div className="product-detail-info">
 
-          <p>
-            Prix : {produit.prix} DA
-          </p>
+            {produit.categorie && (
+              <span className="product-card-category">
+                {produit.categorie}
+              </span>
+            )}
 
-          <p>
-            {produit.description}
-          </p>
+            <h1>{produit.nom}</h1>
 
-           <button
-                onClick={function () {
-                  addToCart(produit);
-                }}
-              >
-                Ajouter au panier
-              </button>
+            <p className="product-detail-price">
+              {produit.prix} DA
+            </p>
 
-        </div>
+            <div className="product-detail-divider" />
 
+            <h2>Description du produit</h2>
+
+            <p className="product-detail-description">
+              {produit.description ||
+                'Aucune description disponible pour ce produit.'}
+            </p>
+
+            <button
+              type="button"
+              className="btn-modern btn-modern-primary product-detail-add"
+              onClick={() => addToCart(produit)}
+            >
+              Ajouter au panier
+            </button>
+
+            <Link
+              to="/products"
+              className="product-back-link"
+            >
+              ← Continuer les achats
+            </Link>
+
+          </div>
+        </section>
       </div>
-
-    </div>
+    </main>
   );
 }
 
 export default ProductDetaille;
-
